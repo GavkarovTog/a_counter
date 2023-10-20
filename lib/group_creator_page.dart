@@ -11,6 +11,27 @@ class GroupCreatorPage extends StatelessWidget {
   TextEditingController _groupName = TextEditingController();
   TextEditingController _groupType = TextEditingController();
 
+  void okAction(context) async {
+    if (!_toCreate.currentState!.validate()) {
+      return;
+    }
+
+    List<Group> groups =
+    await DatabaseProvider.getGroupInfo();
+
+    String groupName = _groupName.text;
+    TypesOfGroup groupType = Type.fromStringToEnum(_groupType.text);
+    AppStatus status = AppStatus.ok();
+
+    if (groups.contains(Group(groupName, groupType))) {
+      status = AppStatus.err("Попытка создать группу с занятым именем.");
+    } else {
+      DatabaseProvider.addGroup(groupName, groupType);
+    }
+
+    Navigator.of(context).pop(status);
+  }
+
   Widget getNewGroupBadge() {
     return Container(
       padding: EdgeInsets.symmetric(vertical: 5),
@@ -31,6 +52,19 @@ class GroupCreatorPage extends StatelessWidget {
     );
   }
 
+  List<DropdownMenuEntry> getTypesMenuItems(List<TypesOfGroup> types) {
+    List<DropdownMenuEntry> entries = [];
+
+    for (int i = 0; i < types.length; i ++) {
+      entries.add(DropdownMenuEntry(
+        value: (i + 1).toString(),
+        label: Type.fromEnumToString(types[i]),
+        style: ButtonStyle(),
+      ));
+    }
+
+    return entries;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -64,37 +98,24 @@ class GroupCreatorPage extends StatelessWidget {
                                 }
                               },
                               decoration: InputDecoration(
-                                filled: true,
-                                fillColor: Colors.teal.shade100,
-                                labelText: "Наименование группы",
-                                errorStyle: TextStyle(
-
-                                  color: Colors.black
-                                )
-                              ),
+                                  filled: true,
+                                  fillColor: Colors.teal.shade100,
+                                  labelText: "Наименование группы",
+                                  errorStyle: TextStyle(color: Colors.black)),
                               maxLength: 38,
                             ),
                             DropdownMenu(
                               controller: _groupType,
                               inputDecorationTheme: InputDecorationTheme(
-                                  filled: true, fillColor: Colors.teal.shade100),
+                                  filled: true,
+                                  fillColor: Colors.teal.shade100),
                               menuStyle: MenuStyle(
-                                  backgroundColor: MaterialStatePropertyAll<Color>(
-                                      Colors.teal.shade100)),
+                                  backgroundColor:
+                                      MaterialStatePropertyAll<Color>(
+                                          Colors.teal.shade100)),
                               label: Text("Тип группы"),
                               initialSelection: "1",
-                              dropdownMenuEntries: [
-                                DropdownMenuEntry(
-                                  value: "1",
-                                  label: "Позиция - Стоимость",
-                                  style: ButtonStyle(),
-                                ),
-                                DropdownMenuEntry(
-                                  value: "2",
-                                  label: "Позиция - Время",
-                                  style: ButtonStyle(),
-                                )
-                              ],
+                              dropdownMenuEntries: getTypesMenuItems(Type.groupTypes),
                             ),
                             const SizedBox(height: 50),
                             Row(
@@ -102,12 +123,14 @@ class GroupCreatorPage extends StatelessWidget {
                               children: [
                                 ElevatedButton(
                                     onPressed: () {
-                                      Navigator.of(context).pop(AppStatus(true, "Cancel operation!"));
+                                      Navigator.of(context).pop(
+                                          AppStatus(true, "Cancel operation!"));
                                     },
                                     style: ElevatedButton.styleFrom(
                                         foregroundColor: Colors.black45,
                                         shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(5)),
+                                            borderRadius:
+                                                BorderRadius.circular(5)),
                                         backgroundColor: Colors.white),
                                     child: const Padding(
                                       padding: const EdgeInsets.symmetric(
@@ -121,43 +144,12 @@ class GroupCreatorPage extends StatelessWidget {
                                   width: 10,
                                 ),
                                 ElevatedButton(
-                                    onPressed: () async {
-                                      if (! _toCreate.currentState!.validate()) {
-                                        return;
-                                      }
+                                    onPressed: () => okAction(context),
 
-                                      List queryResult = await DatabaseProvider.getGroupNames();
-                                      List<String> groups = [];
-                                      for (var result in queryResult) {
-                                        groups.add(result["name"]);
-                                      }
-                                      Database db = await DatabaseProvider.db;
-
-                                      AppStatus status = AppStatus(true, "Ok!");
-                                      await db.transaction((txn) async {
-                                        if (groups.contains(_groupName.text.toLowerCase())) {
-                                          status.isOk = false;
-                                          status.message = "Попытка создать группу с занятым именем.";
-                                        } else {
-                                          await txn.rawInsert(
-                                              '''
-                                        INSERT INTO groups(name, type_id)
-                                        VALUES (?, ?);
-                                        ''',
-                                              [
-                                                _groupName.text.toLowerCase(),
-                                                _groupType.text ==
-                                                    "Позиция - Стоимость" ? 1 : 2
-                                              ]
-                                          );
-                                        }
-                                      });
-
-                                      Navigator.of(context).pop(status);
-                                    },
                                     style: ElevatedButton.styleFrom(
                                         shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(5)),
+                                            borderRadius:
+                                                BorderRadius.circular(5)),
                                         backgroundColor: Colors.teal.shade200),
                                     child: const Padding(
                                       padding: const EdgeInsets.symmetric(
