@@ -19,6 +19,8 @@ class DataObserverPage extends StatefulWidget {
 }
 
 class _DataObserverPageState extends State<DataObserverPage> {
+  TextEditingController searchText = TextEditingController();
+
   Widget getGroupsBadge() {
     return Container(
       decoration: BoxDecoration(color: Colors.teal.shade200, boxShadow: [
@@ -173,9 +175,11 @@ class _DataObserverPageState extends State<DataObserverPage> {
             validator: (text) {
               if (text == "") {
                 return "Поле должно быть заполнено";
-              } else if (groupInfo.groupType == TypesOfGroup.timeData &&! RegExp(r"^\d+:\d\d").hasMatch(text!)) {
+              } else if (groupInfo.groupType == TypesOfGroup.timeData &&
+                  !RegExp(r"^-?\d+:\d\d").hasMatch(text!)) {
                 return "Нарушен формат 'hours:minutes'";
-              } else if (groupInfo.groupType == TypesOfGroup.priceData &&! RegExp(r"^\d+(\.\d+)?$").hasMatch(text!)) {
+              } else if (groupInfo.groupType == TypesOfGroup.priceData &&
+                  !RegExp(r"^-?\d+(\.\d+)?$").hasMatch(text!)) {
                 return "Нарушен формат 'digits.digits или number'";
               }
             },
@@ -224,15 +228,19 @@ class _DataObserverPageState extends State<DataObserverPage> {
                       if (groupInfo.groupType == TypesOfGroup.priceData) {
                         await DatabaseProvider.addPriceData(
                             groupInfo.groupName,
-                            DateTime.now(),
+                            SimpleDateTimeFactory.createCurrent(),
                             name.text,
                             double.parse(priceOrDate.text));
                       } else if (groupInfo.groupType == TypesOfGroup.timeData) {
                         List<String> toTime = priceOrDate.text.split(":");
-                        DateTime time = DateTime(2000, 01, 01, int.parse(toTime[0]), int.parse(toTime[1]));
+                        DateTime time = SimpleDateTimeFactory.createTime(
+                            int.parse(toTime[0]), int.parse(toTime[1]));
 
-                        await DatabaseProvider.addTimeData(groupInfo.groupName,
-                            DateTime.now(), name.text, time);
+                        await DatabaseProvider.addTimeData(
+                            groupInfo.groupName,
+                            SimpleDateTimeFactory.createCurrent(),
+                            name.text,
+                            time);
                       }
 
                       Navigator.of(context).pop();
@@ -248,9 +256,12 @@ class _DataObserverPageState extends State<DataObserverPage> {
     );
   }
 
-  Widget getDataChangeDialog(BuildContext context, Group groupInfo, AccountingData dataEntry) {
-    TextEditingController name = TextEditingController(text: dataEntry.positionName);
-    TextEditingController priceOrDate = TextEditingController(text: dataEntry.getData());
+  Widget getDataChangeDialog(
+      BuildContext context, Group groupInfo, AccountingData dataEntry) {
+    TextEditingController name =
+        TextEditingController(text: dataEntry.positionName);
+    TextEditingController priceOrDate =
+        TextEditingController(text: dataEntry.getData());
     ValueNotifier<DateTime> dateForEntry = ValueNotifier(dataEntry.date);
 
     TextInputType inputType = groupInfo.groupType == TypesOfGroup.priceData
@@ -258,7 +269,7 @@ class _DataObserverPageState extends State<DataObserverPage> {
         : TextInputType.datetime;
 
     String hintForData =
-    groupInfo.groupType == TypesOfGroup.priceData ? "Цена" : "Время";
+        groupInfo.groupType == TypesOfGroup.priceData ? "Цена" : "Время";
 
     GlobalKey<FormState> key = GlobalKey<FormState>();
 
@@ -274,70 +285,78 @@ class _DataObserverPageState extends State<DataObserverPage> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                SizedBox(width: 10,),
+                SizedBox(
+                  width: 10,
+                ),
                 Text("Дата:", style: TextStyle(fontSize: 16)),
                 TextButton(
                     onPressed: () {
                       showDatePicker(
-                          context: context,
-                          initialDate: dataEntry.date,
-                          firstDate: DateTime(2000, 1, 1),
-                          lastDate: DateTime.now(),
+                        context: context,
+                        initialDate: dataEntry.date,
+                        firstDate: SimpleDateTimeFactory.createStart(),
+                        lastDate: SimpleDateTimeFactory.createEnd(),
                       ).then((selectedDate) {
                         if (selectedDate != null) {
                           dateForEntry.value = selectedDate;
                         }
                       });
                     },
-                    child: Text("${dateValue.day}.${dateValue.month}.${dateValue.year}", style: TextStyle(fontSize: 16))),
-                SizedBox(width: 10,),
+                    child: Text(
+                        "${dateValue.day}.${dateValue.month}.${dateValue.year}",
+                        style: TextStyle(fontSize: 16))),
+                SizedBox(
+                  width: 10,
+                ),
               ],
             ),
             Container(
-              // margin:
-              //     EdgeInsets.symmetric(horizontal: 20),
+                // margin:
+                //     EdgeInsets.symmetric(horizontal: 20),
                 child: TextFormField(
-                  validator: (text) {
-                    if (text == "") {
-                      return "Поле должно быть заполнено";
-                    }
-                  },
-                  textAlign: TextAlign.center,
-                  controller: name,
-                  decoration: InputDecoration(hintText: "Наименование"),
-                )),
+              validator: (text) {
+                if (text == "") {
+                  return "Поле должно быть заполнено";
+                }
+              },
+              textAlign: TextAlign.center,
+              controller: name,
+              decoration: InputDecoration(hintText: "Наименование"),
+            )),
             Container(
-              // margin:
-              //     EdgeInsets.symmetric(horizontal: 20),
+                // margin:
+                //     EdgeInsets.symmetric(horizontal: 20),
                 child: TextFormField(
-                  validator: (text) {
-                    if (text == "") {
-                      return "Поле должно быть заполнено";
-                    } else if (groupInfo.groupType == TypesOfGroup.timeData &&! RegExp(r"^\d+:\d\d").hasMatch(text!)) {
-                      return "Нарушен формат 'hours:minutes'";
-                    } else if (groupInfo.groupType == TypesOfGroup.priceData &&! RegExp(r"^\d+(\.\d+)?$").hasMatch(text!)) {
-                      return "Нарушен формат 'digits.digits или number'";
-                    }
-                  },
-                  textAlign: TextAlign.center,
-                  keyboardType: inputType,
-                  controller: priceOrDate,
-                  onChanged: (text) {
-                    String result = "";
-                    if (groupInfo.groupType == TypesOfGroup.priceData) {
-                      result = transformPrice(text);
-                    } else if (groupInfo.groupType == TypesOfGroup.timeData) {
-                      result = transformTime(text);
-                    } else {
-                      result = text;
-                    }
+              validator: (text) {
+                if (text == "") {
+                  return "Поле должно быть заполнено";
+                } else if (groupInfo.groupType == TypesOfGroup.timeData &&
+                    !RegExp(r"^\d+:\d\d").hasMatch(text!)) {
+                  return "Нарушен формат 'hours:minutes'";
+                } else if (groupInfo.groupType == TypesOfGroup.priceData &&
+                    !RegExp(r"^\d+(\.\d+)?$").hasMatch(text!)) {
+                  return "Нарушен формат 'digits.digits или number'";
+                }
+              },
+              textAlign: TextAlign.center,
+              keyboardType: inputType,
+              controller: priceOrDate,
+              onChanged: (text) {
+                String result = "";
+                if (groupInfo.groupType == TypesOfGroup.priceData) {
+                  result = transformPrice(text);
+                } else if (groupInfo.groupType == TypesOfGroup.timeData) {
+                  result = transformTime(text);
+                } else {
+                  result = text;
+                }
 
-                    priceOrDate.text = result;
-                    priceOrDate.selection = TextSelection(
-                        baseOffset: result.length, extentOffset: result.length);
-                  },
-                  decoration: InputDecoration(hintText: hintForData),
-                )),
+                priceOrDate.text = result;
+                priceOrDate.selection = TextSelection(
+                    baseOffset: result.length, extentOffset: result.length);
+              },
+              decoration: InputDecoration(hintText: hintForData),
+            )),
             Row(
               children: [
                 Expanded(
@@ -367,18 +386,15 @@ class _DataObserverPageState extends State<DataObserverPage> {
                               dateForEntry.value,
                               name.text,
                               double.parse(priceOrDate.text));
-                        } else if (groupInfo.groupType == TypesOfGroup.timeData) {
+                        } else if (groupInfo.groupType ==
+                            TypesOfGroup.timeData) {
                           List<String> toTime = priceOrDate.text.split(":");
-                          print(toTime);
-                          DateTime time = DateTime(2000, 1, 1, int.parse(toTime[0]),
-                              int.parse(toTime[1]));
 
-                          await DatabaseProvider.changeTimeData(
-                              dataEntry.id,
-                              dateForEntry.value,
-                              name.text,
-                              time
-                          );
+                          DateTime time = SimpleDateTimeFactory.createTime(
+                              int.parse(toTime[0]), int.parse(toTime[1]));
+
+                          await DatabaseProvider.changeTimeData(dataEntry.id,
+                              dateForEntry.value, name.text, time);
                         }
 
                         Navigator.of(context).pop();
@@ -396,72 +412,73 @@ class _DataObserverPageState extends State<DataObserverPage> {
   }
 
   Widget getAccountingDataCard(
-      BuildContext context, DateTime date, List<AccountingData> data) {
+      BuildContext context, DateTime date, List<AccountingData> data,
+      {String toSearch = ""}) {
     List<DataRow> rows = [];
 
     for (var dataLine in data) {
-      rows.add(DataRow(cells: [
-        DataCell(Text(
-          dataLine.positionName,
-          style: TextStyle(fontSize: 16),
-        )),
-        DataCell(Text(dataLine.getData(), style: TextStyle(fontSize: 16))),
-        DataCell(Align(
-          alignment: Alignment.centerRight,
-          child: PopupMenuButton(
-            itemBuilder: (context) => [
-              PopupMenuItem(
-                value: "delete",
-                child: Text("Удалить"),
-              ),
-              PopupMenuItem(
-                value: "change",
-                child: Text("Изменить"),
-              ),
-            ],
-            onSelected: (value) {
-              if (value == "delete") {
-                if (widget.groupInfo.groupType == TypesOfGroup.priceData) {
-                  DatabaseProvider.deletePriceDataById(dataLine.id);
-                } else if (widget.groupInfo.groupType ==
-                    TypesOfGroup.timeData) {
-                  DatabaseProvider.deleteTimeDataById(dataLine.id);
-                }
-              }
-              else if (value == "change") {
-                showDialog(
-                    useSafeArea: false,
-                    barrierDismissible: false,
-                    context: context,
-                    builder: (context) => getDataChangeDialog(context, widget.groupInfo, dataLine)
-                );
-              }
+      print("${dataLine.positionName}: ${ngram(dataLine.positionName, toSearch)}");
 
-              setState(() {});
-            },
-          ),
-        ))
-      ]));
+      if (toSearch == "" || ngram(dataLine.positionName, toSearch) > 0.3) {
+        rows.add(DataRow(cells: [
+          DataCell(Text(
+            dataLine.positionName,
+            style: TextStyle(fontSize: 16),
+          )),
+          DataCell(Text(dataLine.getData(), style: TextStyle(fontSize: 16))),
+          DataCell(Align(
+            alignment: Alignment.centerRight,
+            child: PopupMenuButton(
+              itemBuilder: (context) => [
+                PopupMenuItem(
+                  value: "delete",
+                  child: Text("Удалить"),
+                ),
+                PopupMenuItem(
+                  value: "change",
+                  child: Text("Изменить"),
+                ),
+              ],
+              onSelected: (value) {
+                if (value == "delete") {
+                  if (widget.groupInfo.groupType == TypesOfGroup.priceData) {
+                    DatabaseProvider.deletePriceDataById(dataLine.id);
+                  } else if (widget.groupInfo.groupType ==
+                      TypesOfGroup.timeData) {
+                    DatabaseProvider.deleteTimeDataById(dataLine.id);
+                  }
+                } else if (value == "change") {
+                  showDialog(
+                      useSafeArea: false,
+                      barrierDismissible: false,
+                      context: context,
+                      builder: (context) => getDataChangeDialog(
+                          context, widget.groupInfo, dataLine));
+                }
+
+                setState(() {});
+              },
+            ),
+          ))
+        ]));
+      }
     }
 
-
     List<Widget> cardHeader = [Expanded(child: getDateBadge(date))];
-    if (dateIsEqual(DateTime.now(), date)) {
-      cardHeader.add(
-          InkWell(
-            splashColor: Colors.white30,
-            onTap: () {
-              showDialog(
-                  context: context,
-                  builder: (context) =>
-                      getDataCreateDialog(context, widget.groupInfo));
-            },
-            child: Container(
-              padding: EdgeInsets.symmetric(horizontal: 9.5, vertical: 9.5),
-              child: Icon(Icons.add, color: Colors.white),
-            ),
-          )
-      );
+    if (dateIsEqual(SimpleDateTimeFactory.createCurrent(), date)) {
+      cardHeader.add(InkWell(
+        splashColor: Colors.white30,
+        onTap: () {
+          showDialog(
+              context: context,
+              builder: (context) =>
+                  getDataCreateDialog(context, widget.groupInfo));
+        },
+        child: Container(
+          padding: EdgeInsets.symmetric(horizontal: 9.5, vertical: 9.5),
+          child: Icon(Icons.add, color: Colors.white),
+        ),
+      ));
     }
 
     return Card(
@@ -490,7 +507,7 @@ class _DataObserverPageState extends State<DataObserverPage> {
     );
   }
 
-  Widget getAccountingDataCards() {
+  Widget getAccountingDataCards(String toSearch) {
     return FutureBuilder(
         future: widget.groupInfo.getGroupData(),
         builder: (context, snapshot) {
@@ -504,9 +521,11 @@ class _DataObserverPageState extends State<DataObserverPage> {
 
           if (dataEntries.isEmpty ||
               dataEntries.isNotEmpty &&
-                  !dateIsEqual(dataEntries[0].date, DateTime.now())) {
+                  !dateIsEqual(dataEntries[0].date,
+                      SimpleDateTimeFactory.createCurrent())) {
             cards.add(
-              getAccountingDataCard(context, DateTime.now(), []),
+              getAccountingDataCard(
+                  context, SimpleDateTimeFactory.createCurrent(), []),
             );
 
             cards.add(SizedBox(height: 10));
@@ -517,7 +536,8 @@ class _DataObserverPageState extends State<DataObserverPage> {
           while (end < dataEntries.length) {
             if (!dateIsEqual(dataEntries[start].date, dataEntries[end].date)) {
               cards.add(getAccountingDataCard(context, dataEntries[start].date,
-                  dataEntries.sublist(start, end)));
+                  dataEntries.sublist(start, end),
+                  toSearch: toSearch));
               start = end;
               cards.add(SizedBox(height: 10));
             }
@@ -527,11 +547,13 @@ class _DataObserverPageState extends State<DataObserverPage> {
 
           if (dataEntries.isNotEmpty) {
             cards.add(getAccountingDataCard(context, dataEntries[start].date,
-                dataEntries.sublist(start, end)));
+                dataEntries.sublist(start, end),
+                toSearch: toSearch));
             cards.add(SizedBox(height: 10));
           }
 
-          return Expanded(child: ListView.builder(
+          return Expanded(
+              child: ListView.builder(
             physics: AlwaysScrollableScrollPhysics(),
             shrinkWrap: true,
             itemCount: cards.length,
@@ -547,6 +569,9 @@ class _DataObserverPageState extends State<DataObserverPage> {
       appBar: AppBar(
         automaticallyImplyLeading: false,
         title: SearchBar(
+          controller: searchText,
+          onChanged: (text) {setState(() {
+          });},
           trailing: [
             Icon(
               Icons.search,
@@ -563,7 +588,7 @@ class _DataObserverPageState extends State<DataObserverPage> {
         children: [
           getGroupsBadge(),
           SizedBox(height: 20),
-          getAccountingDataCards()
+          getAccountingDataCards(searchText.text)
         ],
       ),
     );

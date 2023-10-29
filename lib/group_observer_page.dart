@@ -1,5 +1,6 @@
 import 'package:a_counter/data_observer_page.dart';
 import 'package:a_counter/group_creator_page.dart';
+import 'package:a_counter/statistics_page.dart';
 import 'package:a_counter/utils.dart';
 import 'package:flutter/material.dart';
 import 'package:sqflite/sqflite.dart';
@@ -66,7 +67,8 @@ class _GroupObserverPageState extends State<GroupObserverPage> {
                 ))),
             Expanded(child: InkWell(
                 onTap: () async {
-                  setState(() {});
+                  Navigator.of(context).push(MaterialPageRoute(
+                      builder: (context) => StatisticsPage(groupInfo)));
                 },
                 splashColor: Colors.black12,
                 child: Ink(
